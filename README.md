@@ -1,1 +1,22 @@
-# FileCompare
+﻿# (C# 코딩) 파일 비교툴
+## 개요
+- C# 프로그래밍 학습
+- 1줄 소개: 두 폴더의 파일들을 비교해서 상호 복사하는 툴
+- 사용한 플랫폼:
+- C#, .NET Windows Forms, Visual Studio, GitHub
+- 사용한 컨트롤:
+- Label, TextBox, ListBox, Button, SplitContainer, Panel, ListView
+- 사용한 기술과 구현한 기능:
+
+## 실행 화면 (과제1)
+- 코드의 실행 스크린샷과 구현 내용 설명
+
+![실행화면](img/과제1_1.png)
+
+![실행화면](img/과제1_2.png)
+
+![실행화면](img/과제1_3.png)
+
+- 구현한 내용 (위 그림 참조)
+- UI 구성 : 주어진 환경에 맞게 GUI 설계 및 컨트롤 배치
+- 폴더 선택 : 폴더 선택 버튼을 통해 폴더 경로를 입력받아 textBox에 표시(folderBrowserDialog 사용)
