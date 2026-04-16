@@ -7,6 +7,118 @@
             InitializeComponent();
         }
 
+        private void CompareAndPopulate()
+        {
+            string leftDir = txtLeftDir.Text;
+            string rightDir = txtRightDir.Text;
+
+            bool hasLeft = !string.IsNullOrWhiteSpace(leftDir) && Directory.Exists(leftDir);
+            bool hasRight = !string.IsNullOrWhiteSpace(rightDir) && Directory.Exists(rightDir);
+
+            // 두 폴더가 모두 선택되어 있지 않으면 중단
+            if (!hasLeft && !hasRight) return;
+
+            lvwLeftDir.BeginUpdate();
+            lvwRightDir.BeginUpdate();
+            lvwLeftDir.Items.Clear();
+            lvwRightDir.Items.Clear();
+
+            try
+            {
+                var leftFiles = new Dictionary<string, FileInfo>(StringComparer.OrdinalIgnoreCase);
+                if (hasLeft)
+                {
+                    foreach (var f in Directory.EnumerateFiles(leftDir))
+                        leftFiles[Path.GetFileName(f)] = new FileInfo(f);
+                }
+
+                var rightFiles = new Dictionary<string, FileInfo>(StringComparer.OrdinalIgnoreCase);
+                if (hasRight)
+                {
+                    foreach (var f in Directory.EnumerateFiles(rightDir))
+                        rightFiles[Path.GetFileName(f)] = new FileInfo(f);
+                }
+
+                // 두 폴더의 고유한 파일명 리스트 생성 (정렬)
+                var allFileNames = leftFiles.Keys.Union(rightFiles.Keys).OrderBy(n => n).ToList();
+
+                foreach (var name in allFileNames)
+                {
+                    leftFiles.TryGetValue(name, out FileInfo lf);
+                    rightFiles.TryGetValue(name, out FileInfo rf);
+
+                    ListViewItem litem = null;
+                    ListViewItem ritem = null;
+
+                    // 왼쪽 아이템 추가
+                    if (lf != null)
+                    {
+                        litem = new ListViewItem(lf.Name);
+                        litem.SubItems.Add(FormatSizeInKb(lf.Length));
+                        litem.SubItems.Add(lf.LastWriteTime.ToString("g"));
+                        lvwLeftDir.Items.Add(litem);
+                    }
+
+                    // 오른쪽 아이템 추가
+                    if (rf != null)
+                    {
+                        ritem = new ListViewItem(rf.Name);
+                        ritem.SubItems.Add(FormatSizeInKb(rf.Length));
+                        ritem.SubItems.Add(rf.LastWriteTime.ToString("g"));
+                        lvwRightDir.Items.Add(ritem);
+                    }
+
+                    // 상태 결정 및 색상 적용
+                    if (lf != null && rf != null)
+                    { // 양쪽에 모두 있는 경우 (비교)
+                        if (lf.LastWriteTime == rf.LastWriteTime)
+                        { // 1단계: 동일 파일 – 양쪽 모두 검은색
+                            litem.ForeColor = Color.Black;
+                            ritem.ForeColor = Color.Black;
+                        }
+                        else if (lf.LastWriteTime > rf.LastWriteTime)
+                        { // 2단계: 다른 파일 - 왼쪽이 New(최신), 오른쪽이 Old(과거)
+                            litem.ForeColor = Color.Red;
+                            ritem.ForeColor = Color.Gray;
+                        }
+                        else
+                        { // 2단계: 다른 파일 - 왼쪽이 Old(과거), 오른쪽이 New(최신)
+                            litem.ForeColor = Color.Gray;
+                            ritem.ForeColor = Color.Red;
+                        }
+                    }
+                    else if (lf != null && rf == null)
+                    { // 3단계: 단독 파일 (왼쪽에만 존재) - 보라색
+                        litem.ForeColor = Color.Purple;
+                    }
+                    else if (lf == null && rf != null)
+                    { // 3단계: 단독 파일 (오른쪽에만 존재) - 보라색
+                        ritem.ForeColor = Color.Purple;
+                    }
+                }
+
+                // 컬럼 너비 자동 조정
+                for (int i = 0; i < lvwLeftDir.Columns.Count; i++)
+                    lvwLeftDir.AutoResizeColumn(i, ColumnHeaderAutoResizeStyle.ColumnContent);
+                for (int i = 0; i < lvwRightDir.Columns.Count; i++)
+                    lvwRightDir.AutoResizeColumn(i, ColumnHeaderAutoResizeStyle.ColumnContent);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, "오류: " + ex.Message, "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                lvwLeftDir.EndUpdate();
+                lvwRightDir.EndUpdate();
+            }
+        }
+
+        private string FormatSizeInKb(long bytes)
+        {
+            return (bytes / 1024.0).ToString("N0") + " KB";
+        }
+
         private void btnLeftDir_Click(object sender, EventArgs e)
         {
             using (var dlg = new FolderBrowserDialog())
@@ -20,6 +132,7 @@
                 if (dlg.ShowDialog() == DialogResult.OK)
                 {
                     txtLeftDir.Text = dlg.SelectedPath;
+                    CompareAndPopulate();
                 }
             }
         }
@@ -37,6 +150,7 @@
                 if (dlg.ShowDialog() == DialogResult.OK)
                 {
                     txtRightDir.Text = dlg.SelectedPath;
+                    CompareAndPopulate();
                 }
             }
         }
