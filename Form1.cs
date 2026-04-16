@@ -302,7 +302,21 @@
         {
             try
             {
-                if (!Directory.Exists(destDir))
+                if (Directory.Exists(destDir))
+                {
+                    var srcInfo = new DirectoryInfo(sourceDir);
+                    var destInfo = new DirectoryInfo(destDir);
+
+                    // 복사하려는 폴더가 대상 폴더보다 더 오래된 경우 한 번 더 확인
+                    if (srcInfo.LastWriteTime < destInfo.LastWriteTime)
+                    {
+                        var msg = $"'{srcInfo.Name}' 폴더가 기존 폴더보다 오래되었습니다.\n그래도 덮어쓰시겠습니까?";
+                        var dr = MessageBox.Show(this, msg, "확인", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                        if (dr == DialogResult.No)
+                            return false; // 복사 취소
+                    }
+                }
+                else
                 {
                     Directory.CreateDirectory(destDir);
                 }
