@@ -2,6 +2,9 @@
 {
     public partial class Form1 : Form
     {
+        private Dictionary<string, FileInfo> leftFiles = new Dictionary<string, FileInfo>(StringComparer.OrdinalIgnoreCase);
+        private Dictionary<string, FileInfo> rightFiles = new Dictionary<string, FileInfo>(StringComparer.OrdinalIgnoreCase);
+
         public Form1()
         {
             InitializeComponent();
@@ -25,14 +28,14 @@
 
             try
             {
-                var leftFiles = new Dictionary<string, FileInfo>(StringComparer.OrdinalIgnoreCase);
+                leftFiles.Clear();
                 if (hasLeft)
                 {
                     foreach (var f in Directory.EnumerateFiles(leftDir))
                         leftFiles[Path.GetFileName(f)] = new FileInfo(f);
                 }
 
-                var rightFiles = new Dictionary<string, FileInfo>(StringComparer.OrdinalIgnoreCase);
+                rightFiles.Clear();
                 if (hasRight)
                 {
                     foreach (var f in Directory.EnumerateFiles(rightDir))
@@ -157,12 +160,87 @@
 
         private void btnCopyFromLeft_Click(object sender, EventArgs e)
         {
+            if (string.IsNullOrWhiteSpace(txtRightDir.Text) || !Directory.Exists(txtRightDir.Text))
+            {
+                MessageBox.Show(this, "오른쪽(대상) 폴더를 설정해주세요.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
 
+            var selected = lvwLeftDir.SelectedItems.Cast<ListViewItem>().ToList();
+            if (selected.Count == 0) return;
+
+            bool listUpdated = false;
+            foreach (var item in selected)
+            {
+                var name = item.Text;
+                if (!leftFiles.TryGetValue(name, out var src))
+                    continue; // 파일 정보 없으면 건너뜀
+
+                var destPath = Path.Combine(txtRightDir.Text, src.Name);
+                if (CopyFileWithConfirmation(src.FullName, destPath))
+                {
+                    listUpdated = true;
+                }
+            }
+
+            if (listUpdated) CompareAndPopulate();
         }
 
         private void btnCopyFromRight_Click(object sender, EventArgs e)
         {
+            if (string.IsNullOrWhiteSpace(txtLeftDir.Text) || !Directory.Exists(txtLeftDir.Text))
+            {
+                MessageBox.Show(this, "왼쪽(대상) 폴더를 설정해주세요.", "알림", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
 
+            var selected = lvwRightDir.SelectedItems.Cast<ListViewItem>().ToList();
+            if (selected.Count == 0) return;
+
+            bool listUpdated = false;
+            foreach (var item in selected)
+            {
+                var name = item.Text;
+                if (!rightFiles.TryGetValue(name, out var src))
+                    continue; // 파일 정보 없으면 건너뜀
+
+                var destPath = Path.Combine(txtLeftDir.Text, src.Name);
+                if (CopyFileWithConfirmation(src.FullName, destPath))
+                {
+                    listUpdated = true;
+                }
+            }
+
+            if (listUpdated) CompareAndPopulate();
+        }
+
+        private bool CopyFileWithConfirmation(string srcFullName, string destPath)
+        {
+            try
+            {
+                if (File.Exists(destPath))
+                {
+                    var srcInfo = new FileInfo(srcFullName);
+                    var destInfo = new FileInfo(destPath);
+
+                    // 복사하려는 파일이 대상 파일보다 더 오래된 경우 한 번 더 확인
+                    if (srcInfo.LastWriteTime < destInfo.LastWriteTime)
+                    {
+                        var msg = $"'{srcInfo.Name}' 파일이 기존 파일보다 오래되었습니다.\n그래도 덮어쓰시겠습니까?";
+                        var dr = MessageBox.Show(this, msg, "확인", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                        if (dr == DialogResult.No)
+                            return false; // 복사 취소
+                    }
+                }
+
+                File.Copy(srcFullName, destPath, true); // true: 덮어쓰기 허용
+                return true;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, $"'{Path.GetFileName(srcFullName)}' 복사 중 오류: {ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
+            }
         }
     }
 }
