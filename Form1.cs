@@ -4,6 +4,8 @@
     {
         private Dictionary<string, FileInfo> leftFiles = new Dictionary<string, FileInfo>(StringComparer.OrdinalIgnoreCase);
         private Dictionary<string, FileInfo> rightFiles = new Dictionary<string, FileInfo>(StringComparer.OrdinalIgnoreCase);
+        private Dictionary<string, DirectoryInfo> leftDirs = new Dictionary<string, DirectoryInfo>(StringComparer.OrdinalIgnoreCase);
+        private Dictionary<string, DirectoryInfo> rightDirs = new Dictionary<string, DirectoryInfo>(StringComparer.OrdinalIgnoreCase);
 
         public Form1()
         {
@@ -29,17 +31,81 @@
             try
             {
                 leftFiles.Clear();
+                leftDirs.Clear();
                 if (hasLeft)
                 {
+                    foreach (var d in Directory.EnumerateDirectories(leftDir))
+                        leftDirs[Path.GetFileName(d)] = new DirectoryInfo(d);
                     foreach (var f in Directory.EnumerateFiles(leftDir))
                         leftFiles[Path.GetFileName(f)] = new FileInfo(f);
                 }
 
                 rightFiles.Clear();
+                rightDirs.Clear();
                 if (hasRight)
                 {
+                    foreach (var d in Directory.EnumerateDirectories(rightDir))
+                        rightDirs[Path.GetFileName(d)] = new DirectoryInfo(d);
                     foreach (var f in Directory.EnumerateFiles(rightDir))
                         rightFiles[Path.GetFileName(f)] = new FileInfo(f);
+                }
+
+                // 두 폴더의 하위 폴더명 리스트 생성 및 비교
+                var allDirNames = leftDirs.Keys.Union(rightDirs.Keys).OrderBy(n => n).ToList();
+
+                foreach (var name in allDirNames)
+                {
+                    leftDirs.TryGetValue(name, out DirectoryInfo ld);
+                    rightDirs.TryGetValue(name, out DirectoryInfo rd);
+
+                    ListViewItem litem = null;
+                    ListViewItem ritem = null;
+
+                    // 왼쪽 폴더 아이템 추가
+                    if (ld != null)
+                    {
+                        litem = new ListViewItem(ld.Name);
+                        litem.SubItems.Add("<DIR>");
+                        litem.SubItems.Add(ld.LastWriteTime.ToString("g"));
+                        lvwLeftDir.Items.Add(litem);
+                    }
+
+                    // 오른쪽 폴더 아이템 추가
+                    if (rd != null)
+                    {
+                        ritem = new ListViewItem(rd.Name);
+                        ritem.SubItems.Add("<DIR>");
+                        ritem.SubItems.Add(rd.LastWriteTime.ToString("g"));
+                        lvwRightDir.Items.Add(ritem);
+                    }
+
+                    // 폴더 상태 결정 및 파일과 동일한 색상 적용
+                    if (ld != null && rd != null)
+                    { // 양쪽에 모두 있는 경우 (비교)
+                        if (ld.LastWriteTime == rd.LastWriteTime)
+                        { // 1단계: 동일 폴더 – 양쪽 모두 검은색
+                            litem.ForeColor = Color.Black;
+                            ritem.ForeColor = Color.Black;
+                        }
+                        else if (ld.LastWriteTime > rd.LastWriteTime)
+                        { // 2단계: 다른 폴더 - 왼쪽이 New(최신), 오른쪽이 Old(과거)
+                            litem.ForeColor = Color.Red;
+                            ritem.ForeColor = Color.Gray;
+                        }
+                        else
+                        { // 2단계: 다른 폴더 - 왼쪽이 Old(과거), 오른쪽이 New(최신)
+                            litem.ForeColor = Color.Gray;
+                            ritem.ForeColor = Color.Red;
+                        }
+                    }
+                    else if (ld != null && rd == null)
+                    { // 3단계: 단독 폴더 (왼쪽에만 존재) - 보라색
+                        litem.ForeColor = Color.Purple;
+                    }
+                    else if (ld == null && rd != null)
+                    { // 3단계: 단독 폴더 (오른쪽에만 존재) - 보라색
+                        ritem.ForeColor = Color.Purple;
+                    }
                 }
 
                 // 두 폴더의 고유한 파일명 리스트 생성 (정렬)
@@ -173,13 +239,22 @@
             foreach (var item in selected)
             {
                 var name = item.Text;
-                if (!leftFiles.TryGetValue(name, out var src))
-                    continue; // 파일 정보 없으면 건너뜀
 
-                var destPath = Path.Combine(txtRightDir.Text, src.Name);
-                if (CopyFileWithConfirmation(src.FullName, destPath))
-                {
-                    listUpdated = true;
+                if (leftDirs.TryGetValue(name, out var srcDir))
+                { // 선택된 항목이 폴더인 경우
+                    var destPath = Path.Combine(txtRightDir.Text, srcDir.Name);
+                    if (CopyDirectory(srcDir.FullName, destPath))
+                    {
+                        listUpdated = true;
+                    }
+                }
+                else if (leftFiles.TryGetValue(name, out var srcFile))
+                { // 선택된 항목이 파일인 경우
+                    var destPath = Path.Combine(txtRightDir.Text, srcFile.Name);
+                    if (CopyFileWithConfirmation(srcFile.FullName, destPath))
+                    {
+                        listUpdated = true;
+                    }
                 }
             }
 
@@ -201,17 +276,61 @@
             foreach (var item in selected)
             {
                 var name = item.Text;
-                if (!rightFiles.TryGetValue(name, out var src))
-                    continue; // 파일 정보 없으면 건너뜀
 
-                var destPath = Path.Combine(txtLeftDir.Text, src.Name);
-                if (CopyFileWithConfirmation(src.FullName, destPath))
-                {
-                    listUpdated = true;
+                if (rightDirs.TryGetValue(name, out var srcDir))
+                { // 선택된 항목이 폴더인 경우
+                    var destPath = Path.Combine(txtLeftDir.Text, srcDir.Name);
+                    if (CopyDirectory(srcDir.FullName, destPath))
+                    {
+                        listUpdated = true;
+                    }
+                }
+                else if (rightFiles.TryGetValue(name, out var srcFile))
+                { // 선택된 항목이 파일인 경우
+                    var destPath = Path.Combine(txtLeftDir.Text, srcFile.Name);
+                    if (CopyFileWithConfirmation(srcFile.FullName, destPath))
+                    {
+                        listUpdated = true;
+                    }
                 }
             }
 
             if (listUpdated) CompareAndPopulate();
+        }
+
+        private bool CopyDirectory(string sourceDir, string destDir)
+        {
+            try
+            {
+                if (!Directory.Exists(destDir))
+                {
+                    Directory.CreateDirectory(destDir);
+                }
+
+                // 내부 파일 복사
+                foreach (var file in Directory.GetFiles(sourceDir))
+                {
+                    string destPath = Path.Combine(destDir, Path.GetFileName(file));
+                    CopyFileWithConfirmation(file, destPath);
+                }
+
+                // 내부 폴더 재귀 복사
+                foreach (var dir in Directory.GetDirectories(sourceDir))
+                {
+                    string destPath = Path.Combine(destDir, Path.GetFileName(dir));
+                    CopyDirectory(dir, destPath);
+                }
+
+                // 폴더 구조 복사 완료 후 대상 폴더의 시간 정보를 원본과 일치시킴
+                Directory.SetLastWriteTime(destDir, Directory.GetLastWriteTime(sourceDir));
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, $"'{Path.GetFileName(sourceDir)}' 폴더 복사 중 오류: {ex.Message}", "오류", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return false;
+            }
         }
 
         private bool CopyFileWithConfirmation(string srcFullName, string destPath)
