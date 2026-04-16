@@ -7,6 +7,8 @@
 - 사용한 컨트롤:
 - Label, TextBox, ListBox, Button, SplitContainer, Panel, ListView
 - 사용한 기술과 구현한 기능:
+- 컨트롤 배치 및 이벤트 처리
+- 폴더 선택 기능 (FolderBrowserDialog)
 
 ## 실행 화면 (과제1)
 - 코드의 실행 스크린샷과 구현 내용 설명
