@@ -10,8 +10,8 @@
 	- 컨트롤 배치 및 이벤트 처리
 	- 폴더 선택 기능 (FolderBrowserDialog)
 	- 파일 리스트 기능 구현 (색상 구분 표시)
-	- copyselectedfiles() 메서드 구현 (파일 복사 기능)
-	- copydirectory() 메서드 구현 (폴더 복사 기능)
+	- copyselectedfiles() 메서드를 통해 구현 (파일 복사 기능)
+	- copydirectory() 메서드를 통해 구현 (폴더 복사 기능)
 	- 하위폴더 모든 내용 복사 기능 구현
 
 ## 실행 화면 (과제1)
